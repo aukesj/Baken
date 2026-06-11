@@ -1,0 +1,78 @@
+# Baken — Apache reverse-proxy example (ADVANCED / reference).
+#
+# Most people should use the bundled Caddy (proxy/Caddyfile) — it does TLS
+# automatically and needs no host web server. This file is for those who already
+# run Apache and want to integrate Baken into it.
+#
+# Assumptions for this example:
+#   - You expose Traccar on the host: 127.0.0.1:8082 (web/API) and
+#     127.0.0.1:5055 (OsmAnd). Add those port mappings to docker-compose, or run
+#     Traccar directly.
+#   - A local php-fpm serves the bridge directory (Baken/bridge) with the env
+#     vars BAKEN_OSMAND_URL=http://127.0.0.1:5055/ etc.
+#   - Replace YOUR_HOST and the paths below. TLS is up to you (e.g. certbot).
+#
+# Required modules: proxy, proxy_http, proxy_wstunnel, rewrite, headers,
+# proxy_fcgi (for php-fpm).
+
+<VirtualHost *:443>
+    ServerName YOUR_HOST
+
+    SSLEngine on
+    SSLCertificateFile    /etc/letsencrypt/live/YOUR_HOST/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/YOUR_HOST/privkey.pem
+
+    # Viewer (static PWA)
+    DocumentRoot /opt/baken/viewer
+    <Directory /opt/baken/viewer>
+        Require all granted
+    </Directory>
+
+    # Security headers
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Location data must never be cached — only on the API.
+    <LocationMatch "^/api">
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, private, max-age=0"
+    </LocationMatch>
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # WebSocket first (Traccar live updates)
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/api/socket(.*) ws://127.0.0.1:8082/api/socket$1 [P,L]
+
+    # Device publish (Traccar Client app, OsmAnd protocol)
+    ProxyPass        /track  http://127.0.0.1:5055/
+    ProxyPassReverse /track  http://127.0.0.1:5055/
+
+    # Overland bridge via php-fpm
+    Alias /overland /opt/baken/bridge/overland.php
+    <Directory /opt/baken/bridge>
+        Require all granted
+    </Directory>
+    <FilesMatch "\.php$">
+        SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost"
+    </FilesMatch>
+
+    # REST API + web (everything else not matched above)
+    ProxyPass        /api/socket !
+    ProxyPass        /track      !
+    ProxyPass        /overland   !
+    ProxyPass        /api  http://127.0.0.1:8082/api
+    ProxyPassReverse /api  http://127.0.0.1:8082/api
+
+    ErrorLog  logs/baken-error_log
+    CustomLog logs/baken-access_log common
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName YOUR_HOST
+    RewriteEngine On
+    RewriteRule ^/(.*)$ https://YOUR_HOST/$1 [R,L]
+</VirtualHost>

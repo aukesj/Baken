@@ -62,7 +62,7 @@ The **viewer** is a static PWA. The **bridge** is a tiny PHP script translating 
 ## Quick start
 
 ```bash
-git clone https://codeberg.org/<you>/baken.git
+git clone https://codeberg.org/jasperaukes/Baken.git baken
 cd baken
 cp .env.example .env      # set hostname, admin credentials, etc.
 docker compose up -d

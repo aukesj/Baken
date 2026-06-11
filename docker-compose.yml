@@ -1,0 +1,59 @@
+# Baken — one-command self-hosted location sharing.
+#
+#   cp .env.example .env                      # set BAKEN_HOST
+#   cp traccar/traccar.xml.example traccar/traccar.xml
+#   cp proxy/Caddyfile.example proxy/Caddyfile
+#   docker compose up -d
+#
+# Caddy serves the viewer, proxies the API/WebSocket to Traccar, forwards the
+# Overland bridge to php-fpm, and gets automatic HTTPS via Let's Encrypt.
+
+services:
+  traccar:
+    image: traccar/traccar:6.5-alpine
+    container_name: baken-traccar
+    restart: unless-stopped
+    volumes:
+      - ./traccar/data:/opt/traccar/data
+      - ./traccar/logs:/opt/traccar/logs
+      - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+    expose:
+      - "8082"   # web + REST API
+      - "5055"   # OsmAnd device-publish (Traccar Client app + Overland bridge)
+
+  bridge:
+    # Official PHP image ships with the curl extension enabled by default.
+    image: php:8.3-fpm-alpine
+    container_name: baken-bridge
+    restart: unless-stopped
+    environment:
+      - BAKEN_OSMAND_URL=http://traccar:5055/
+      - BAKEN_DEFAULT_DEVICE_ID=${BAKEN_DEFAULT_DEVICE_ID:-}
+    volumes:
+      - ./bridge:/srv/bridge:ro
+    working_dir: /srv/bridge
+    depends_on:
+      - traccar
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: baken-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - BAKEN_HOST=${BAKEN_HOST}
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./viewer:/srv/viewer:ro
+      - ./bridge:/srv/bridge:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - traccar
+      - bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

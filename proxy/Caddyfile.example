@@ -1,0 +1,37 @@
+# Baken — Caddy reverse proxy. Copy to proxy/Caddyfile.
+# Automatic HTTPS: Caddy obtains and renews a Let's Encrypt cert for BAKEN_HOST.
+
+{$BAKEN_HOST} {
+	encode gzip
+
+	# --- REST API + WebSocket -> Traccar -------------------------------------
+	# Location data must never be cached by browsers or the service worker.
+	@api path /api/*
+	header @api Cache-Control "no-store"
+	reverse_proxy @api traccar:8082
+
+	# --- Device publish (OsmAnd protocol: Traccar Client app) ----------------
+	handle_path /track/* {
+		reverse_proxy traccar:5055
+	}
+
+	# --- Overland (iOS) -> PHP bridge -> Traccar OsmAnd ----------------------
+	handle /overland {
+		root * /srv/bridge
+		rewrite * /overland.php
+		php_fastcgi bridge:9000
+	}
+
+	# --- Optional: address lookup via your own Nominatim ---------------------
+	# The viewer can show street names (config.js showAddress:true). That needs
+	# a reverse-geocoder. If you run one, uncomment and point these at it;
+	# otherwise set showAddress:false in viewer/config.js.
+	# handle_path /geocode/* { reverse_proxy nominatim:8080 }
+	# handle_path /geosearch/* { reverse_proxy nominatim:8080 }
+
+	# --- Viewer (static PWA) — everything else -------------------------------
+	handle {
+		root * /srv/viewer
+		file_server
+	}
+}
