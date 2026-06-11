@@ -22,6 +22,17 @@ Baken (Dutch/Norse for *beacon* — a landmark you steer by) lets a family, grou
 
 The result is something you can hand to non-technical family members: they open a web app, see each other on a map, and that's it.
 
+## Screenshots
+
+> Screenshots will be added from a public **demo instance with dummy data** —
+> Baken never ships anyone's real location. Want to help set that up? See
+> [CONTRIBUTING.md](CONTRIBUTING.md).
+
+<!-- Once a demo instance exists, drop images in assets/ and uncomment:
+![Map view](assets/screenshot-map.png)
+![Person details](assets/screenshot-person.png)
+-->
+
 ## Why Baken exists
 
 Find My and Google location sharing work — but every location you share flows through Apple's or Google's servers. Baken's premise is different:

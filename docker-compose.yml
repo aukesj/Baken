@@ -17,9 +17,14 @@ services:
       - ./traccar/data:/opt/traccar/data
       - ./traccar/logs:/opt/traccar/logs
       - ./traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+    ports:
+      # Traccar admin UI, bound to localhost ONLY (never public). Reach it for
+      # admin tasks (users, devices, permissions) via an SSH tunnel:
+      #   ssh -L 8082:localhost:8082 you@your-server   then open http://localhost:8082
+      - "127.0.0.1:8082:8082"
     expose:
-      - "8082"   # web + REST API
-      - "5055"   # OsmAnd device-publish (Traccar Client app + Overland bridge)
+      - "5055"   # OsmAnd device-publish (Traccar Client app + Overland bridge), internal only
+    # Caddy reaches the API at traccar:8082 over the Docker network regardless.
 
   bridge:
     # Official PHP image ships with the curl extension enabled by default.

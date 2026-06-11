@@ -37,19 +37,26 @@ run). Then open `https://baken.example.com/`.
 
 ## First login (create the admin)
 
-Baken's viewer is for *watching*. To manage users and devices you use Traccar's
-own admin UI. Open the Traccar web UI — the simplest way is to temporarily map
-its port, or use the bundled proxy path:
+The Baken viewer at `https://baken.example.com/` is for *watching*. Creating
+users, devices and permissions is done in **Traccar's own admin UI**, which the
+compose binds to `localhost:8082` on the server (never exposed publicly).
 
-1. Visit `https://baken.example.com/` — you'll get Baken's login screen, which
-   talks to Traccar's API.
-2. To create the **first account**, register through Traccar. In Traccar, **the
-   first account you register automatically becomes the administrator.** (See the
-   [Traccar documentation](https://www.traccar.org/documentation/) for the admin
-   UI.)
-3. Log in with that admin account.
+1. Open an SSH tunnel to it and visit it locally:
 
-> Tip: after creating your admin, you can disable open registration in Traccar so
+   ```bash
+   ssh -L 8082:localhost:8082 you@your-server
+   # then open http://localhost:8082 in your browser
+   ```
+
+2. Register a new account. **In Traccar, the first account you register
+   automatically becomes the administrator.** (See the
+   [Traccar documentation](https://www.traccar.org/documentation/).)
+3. As that admin, add your people, devices and visibility — see
+   [SETUP.md](SETUP.md).
+4. Your family then logs in to the viewer at `https://baken.example.com/` with the
+   accounts you created.
+
+> Tip: after creating your admin, disable open registration in Traccar so
 > strangers can't sign themselves up. See [ADMIN.md](ADMIN.md).
 
 ## Next
