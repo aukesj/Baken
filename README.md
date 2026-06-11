@@ -8,6 +8,8 @@
 
 [Quick start](docs/INSTALL.md) · [Setup & users](docs/SETUP.md) · [Admin](docs/ADMIN.md) · [Daily use](docs/USE.md) · [License: AGPL-3.0](LICENSE)
 
+<sub>Canonical home: **[Codeberg](https://codeberg.org/jasperaukes/Baken)**. The GitHub repo is a read-only mirror — please file issues & PRs on Codeberg.</sub>
+
 </div>
 
 ---
@@ -24,14 +26,15 @@ The result is something you can hand to non-technical family members: they open 
 
 ## Screenshots
 
-> Screenshots will be added from a public **demo instance with dummy data** —
-> Baken never ships anyone's real location. Want to help set that up? See
-> [CONTRIBUTING.md](CONTRIBUTING.md).
+*A demo with dummy data — fictional names and AI-generated faces
+([thispersondoesnotexist.com](https://thispersondoesnotexist.com/)). Baken never
+ships anyone's real location.*
 
-<!-- Once a demo instance exists, drop images in assets/ and uncomment:
-![Map view](assets/screenshot-map.png)
-![Person details](assets/screenshot-person.png)
--->
+<p align="center">
+  <img src="assets/screenshot-map.png" alt="Map with several people" width="300">
+  &nbsp;&nbsp;
+  <img src="assets/screenshot-person.png" alt="Live detail card for one person, moving at 50 km/u" width="300">
+</p>
 
 ## Why Baken exists
 

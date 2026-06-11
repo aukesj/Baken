@@ -1,14 +1,20 @@
 # Baken — Caddy reverse proxy. Copy to proxy/Caddyfile.
 # Automatic HTTPS: Caddy obtains and renews a Let's Encrypt cert for BAKEN_HOST.
+#
+# Everything is in `handle` blocks so routing is unambiguous (matched in source
+# order). Don't mix bare directives with handle blocks — the catch-all handle
+# below would otherwise swallow /api requests.
 
 {$BAKEN_HOST} {
 	encode gzip
 
 	# --- REST API + WebSocket -> Traccar -------------------------------------
 	# Location data must never be cached by browsers or the service worker.
-	@api path /api/*
-	header @api Cache-Control "no-store"
-	reverse_proxy @api traccar:8082
+	# Caddy's reverse_proxy upgrades WebSockets automatically (/api/socket).
+	handle /api/* {
+		header Cache-Control "no-store"
+		reverse_proxy traccar:8082
+	}
 
 	# --- Device publish (OsmAnd protocol: Traccar Client app) ----------------
 	handle_path /track/* {
@@ -26,8 +32,12 @@
 	# The viewer can show street names (config.js showAddress:true). That needs
 	# a reverse-geocoder. If you run one, uncomment and point these at it;
 	# otherwise set showAddress:false in viewer/config.js.
-	# handle_path /geocode/* { reverse_proxy nominatim:8080 }
-	# handle_path /geosearch/* { reverse_proxy nominatim:8080 }
+	# handle_path /geocode/* {
+	# 	reverse_proxy nominatim:8080
+	# }
+	# handle_path /geosearch/* {
+	# 	reverse_proxy nominatim:8080
+	# }
 
 	# --- Viewer (static PWA) — everything else -------------------------------
 	handle {
