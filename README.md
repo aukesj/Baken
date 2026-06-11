@@ -14,7 +14,7 @@
 
 ## What is Baken?
 
-Baken (Dutch/Norse for *beacon* — a landmark you steer by) lets a family, group of friends, or small team share live location with each other **on their own server**, with no third party in the loop. It is a thin, friendly layer on top of the proven [Traccar](https://www.traccar.org/) tracking server:
+Baken (Dutch for *beacon* — a landmark you steer by) lets a family, group of friends, or small team share live location with each other **on their own server**, with no third party in the loop. It is a thin, friendly layer on top of the proven [Traccar](https://www.traccar.org/) tracking server:
 
 - a clean, **Find-My-like map viewer** (the part that makes Traccar feel like a consumer app),
 - a small **bridge** so the excellent [Overland](https://overland.p3k.app/) iOS app (battery + real GPS accuracy) can publish to Traccar,
