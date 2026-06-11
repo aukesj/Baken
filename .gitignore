@@ -1,0 +1,9 @@
+# Lokale config & secrets — nooit in git
+.env
+*.env
+!.env.example
+secrets/
+data/
+logs/
+certs/
+.DS_Store
