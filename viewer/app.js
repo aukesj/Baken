@@ -231,7 +231,7 @@
     const node = el(`<div class="pop">
       <div class="pop-h"><span class="pop-dot" style="background:${person.color}"></span><b>${esc(person.name)}</b></div>
       <div class="pop-sub">${esc(addr || "")}</div>
-      <div class="pop-sub dim">${t("last_seen")} · ${agoTxt(p.t)}</div>
+      <div class="pop-sub dim">${t("last_seen")} · ${agoTxt(p.t)}${person._batt != null ? ` · ${person._batt <= 20 ? "🪫" : "🔋"} ${Math.round(person._batt)}%` : ""}</div>
       <div class="pop-row"><input class="pop-name" placeholder="${t("name_ph")}" value="${within ? esc(within.name) : ""}">
         <button class="pop-btn save">${t("save")}</button></div>
       ${within ? `<button class="pop-btn link mk-notif">🔔 ${t("notify")}…</button><div class="notif-form hidden"></div>` : ""}
@@ -343,6 +343,7 @@
         else { person.circle.setLatLng(ll); person.circle.setRadius(accM); }
       } else if (person.circle) { map.removeLayer(person.circle); person.circle = null; }
       person._moving = moving; person._kmh = kmh; person._status = d.status;
+      person._batt = (typeof at.batteryLevel === "number") ? at.batteryLevel : null;
       // Velden voor de tussenpositie-schatting. Bewaar de échte fix apart van
       // wat we straks (geschat) op de kaart tekenen, en stempel op WANNEER we
       // 'm ontvingen (i.p.v. device-tijd → geen klok-skew).
@@ -379,6 +380,8 @@
     $("status-dot").className = "dot" + (d.status === "online" ? " online" : "");
     $("t-name").textContent = d.name;
     $("t-move").textContent = moving ? ("🚗 " + t("moving") + (kmh ? ` · ${kmh} km/u` : "")) : "";
+    const bt = person._batt, be = $("t-batt");
+    if (be) { if (bt != null) { be.textContent = `${bt <= 20 ? "🪫" : "🔋"} ${Math.round(bt)}%`; be.style.color = bt <= 20 ? "#ff453a" : ""; } else be.textContent = ""; }
     if (person.pos && viewer) {
       const dist = fmtDist(haversine(viewer, person.pos));
       const ang = bearing(viewer, person.pos);
