@@ -1,0 +1,137 @@
+:root {
+  --accent: #3f51b5;
+  --bg: #f4f5f7;
+  --card: rgba(255, 255, 255, 0.96);
+  --text: #1c1d21;
+  --dim: #7a7d85;
+  --line: #e3e5ea;
+  --field: #ffffff;
+  --ok: #2ecc71;
+  --off: #b0b4bd;
+  --shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+body.dark {
+  --bg: #15171c; --card: rgba(30, 33, 40, 0.96); --text: #eceef2; --dim: #9aa0ab;
+  --line: #2c2f38; --field: #232730;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Viewport vergrendelen: geen scroll/bounce → schermelementen blijven vast en
+   geen witte balk onderin. */
+html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text); }
+/* Géén position:fixed op body/#map — dat lijnt op iOS uit op de layout-viewport
+   die de onderste safe-area (home-indicator) NIET meeneemt → donkere strook.
+   Normale flow + 100dvh + viewport-fit=cover vult wél tot de fysieke randen
+   (zelfde aanpak als de tictactoe-PWA). */
+body { height: 100dvh; overflow: hidden; overscroll-behavior: none; background: var(--bg); touch-action: manipulation; }
+.hidden { display: none !important; }
+#map { width: 100%; height: 100dvh; background: var(--bg); }
+/* Leaflet-knopjes (zoom + attributie) boven de home-indicator houden. */
+.leaflet-bottom { margin-bottom: env(safe-area-inset-bottom, 0px); }
+body.dark .leaflet-control-zoom a { background: #232730; color: #eceef2; border-color: #2c2f38; }
+
+/* Find-My-achtige pulserende gloed rond het foto-vaantje: begint strak om de
+   foto en dijt rustig uit, twee gestaggerde ringen die blijven herhalen. */
+@keyframes trace-pulse {
+  0%   { transform: translate(-50%, -50%) scale(0.62); opacity: 0.50; }
+  70%  { opacity: 0.06; }
+  100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
+}
+.ppulse { position: absolute; left: 50%; top: 23px; width: 46px; height: 46px; border-radius: 50%; pointer-events: none; animation: trace-pulse 2.4s ease-out infinite; }
+.ppulse.d { animation-delay: 1.2s; }
+/* Donker thema verdonkert lichte kaarten; de Donkere kaartstijl zelf niet. */
+body.dark:not(.mapstyle-dark) .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
+
+/* ---- bovenkaart ---- */
+.card {
+  position: fixed; z-index: 1000; top: calc(10px + var(--safe-t)); left: 10px; right: 10px;
+  margin: 0 auto; max-width: 460px; background: var(--card); backdrop-filter: blur(8px);
+  border-radius: 16px; box-shadow: var(--shadow); padding: 12px 16px;
+}
+.card .row1 { display: flex; align-items: center; gap: 8px; }
+.card .name { font-size: 18px; font-weight: 700; }
+.dot { width: 11px; height: 11px; border-radius: 50%; background: var(--off); flex: 0 0 auto; }
+.dot.online { background: var(--ok); box-shadow: 0 0 0 4px rgba(46, 204, 113, .2); }
+.card .addr { font-size: 13px; color: var(--dim); margin-top: 3px; min-height: 16px; }
+.card .row2 { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 13px; }
+.card .meta { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+.card .meta:empty { display: none; }
+.card .arrow { display: inline-block; font-weight: 700; }
+.card .seen { font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+/* ---- toast ---- */
+.toast {
+  position: fixed; z-index: 1500; left: 10px; right: 10px; bottom: calc(86px + var(--safe-b));
+  margin: 0 auto; max-width: 460px; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
+  padding: 12px 16px; border-radius: 14px; box-shadow: var(--shadow); animation: pop .2s ease;
+}
+@keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+
+/* ---- fabs ---- */
+#fabs { position: fixed; z-index: 1000; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(18px + var(--safe-b)); display: flex; flex-direction: column; gap: 10px; }
+.fab { width: 54px; height: 54px; border-radius: 50%; border: 0; background: var(--card); color: var(--accent); box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center; touch-action: manipulation; }
+.fab svg { width: 30px; height: 30px; display: block; }
+.fab:active { transform: scale(0.94); }
+.fab.active { background: var(--accent); color: #fff; }
+
+/* ---- sheet ---- */
+#sheet-backdrop { position: fixed; inset: 0; z-index: 1900; background: rgba(0, 0, 0, .4); }
+.sheet { position: fixed; z-index: 2000; left: 0; right: 0; bottom: 0; background: var(--bg); border-radius: 20px 20px 0 0; box-shadow: var(--shadow); padding: 8px 18px calc(18px + var(--safe-b)); max-height: 88%; overflow-y: auto; animation: slideup .16s ease; }
+@keyframes slideup { from { transform: translateY(100%); } }
+.sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 6px auto 12px; }
+.sheet h2 { margin: 0 0 14px; font-size: 20px; }
+.sheet section { margin-bottom: 22px; }
+.sheet h3 { margin: 0 0 8px; font-size: 14px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+.version { text-align: center; color: var(--dim); font-size: 12px; opacity: .7; margin-top: 4px; }
+
+/* segmented control */
+.seg { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.seg button { flex: 1; border: 0; background: transparent; color: var(--text); padding: 11px 4px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.seg button.on { background: var(--accent); color: #fff; }
+
+/* checkbox list */
+.checks, .notiflist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.checks li label { display: flex; align-items: center; gap: 8px; font-size: 15px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.checks input { width: 19px; height: 19px; }
+.cdot { width: 12px; height: 12px; border-radius: 50%; }
+.notiflist li { display: flex; align-items: center; gap: 10px; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.notiflist li.empty { color: var(--dim); justify-content: center; }
+.notiflist i { color: var(--dim); font-style: normal; font-size: 12px; }
+.notiflist .del { margin-left: auto; }
+
+.del { border: 0; background: #ffe3e3; color: #c0392b; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+body.dark .del { background: #44232a; color: #ff9a9a; }
+.logout { width: 100%; border: 0; background: var(--field); border: 1px solid var(--line); color: #c0392b; font-weight: 600; font-size: 15px; padding: 13px; border-radius: 12px; cursor: pointer; }
+body.dark .logout { color: #ff9a9a; }
+
+/* ---- pop-up ---- */
+.pop { min-width: 210px; font-size: 14px; }
+.pop-h { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.pop-dot { width: 12px; height: 12px; border-radius: 50%; }
+.pop-emoji { font-size: 18px; }
+.pop-sub { color: var(--dim); font-size: 13px; margin-top: 4px; }
+.pop-sub.dim { font-size: 12px; }
+.pop-row { display: flex; gap: 6px; margin-top: 10px; }
+.pop-name { flex: 1; padding: 9px; font-size: 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); min-width: 0; }
+.pop-btn { border: 0; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.pop-btn.save { background: var(--accent); color: #fff; }
+.pop-btn.link { background: transparent; color: var(--accent); padding: 8px 0; display: block; margin-top: 8px; }
+.pop-btn.danger { background: #ffe3e3; color: #c0392b; width: 100%; margin-top: 8px; }
+body.dark .pop-btn.danger { background: #44232a; color: #ff9a9a; }
+.notif-form { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.notif-form .nf-row { display: flex; gap: 14px; }
+.notif-form select { padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--text); }
+.notif-form label { font-size: 14px; }
+
+/* leaflet popup in dark */
+body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { background: var(--card); color: var(--text); }
+
+/* ---- login ---- */
+#login { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: var(--accent); }
+#login form { background: #fff; padding: 28px 24px; border-radius: 16px; width: min(90%, 320px); box-shadow: 0 12px 44px rgba(0, 0, 0, .32); display: flex; flex-direction: column; gap: 12px; }
+#login h1 { margin: 0; font-size: 24px; text-align: center; color: #1c1d21; }
+#login p { margin: 0 0 6px; font-size: 13px; text-align: center; color: #7a7d85; }
+#login input { padding: 13px; font-size: 16px; border: 1px solid #ccc; border-radius: 10px; }
+#login button { padding: 13px; font-size: 16px; font-weight: 700; border: 0; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
+#login .err { color: #c0392b; font-size: 13px; text-align: center; min-height: 16px; }
