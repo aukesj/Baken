@@ -5,6 +5,8 @@
   const REFRESH = cfg.refreshMs || 30000;
   const SPEED_MIN_KMH = 3;     // onder deze snelheid: geen snelheid/"onderweg", geen schatting
   const EST_CAP_S = 25;        // max seconden vooruit schatten tussen fixes
+  const TOKEN_DAYS = 90;       // levensduur van het opgeslagen login-token
+  const TOKEN_REFRESH_DAYS = 30; // hermunt het token als er minder dan dit rest
   let lastMaxKmh = 0;          // snelste zichtbare persoon → bepaalt refresh-tempo
   const ZOOM = cfg.zoom || 15;
   const SHOW_ADDR = cfg.showAddress !== false;
@@ -554,13 +556,23 @@
   function hideLogin() { $("login").classList.add("hidden"); }
   async function checkSession() { try { const r = await api("session"); if (!r.ok) return false; const u = await r.json().catch(() => null); me = u && u.name ? u.name : null; return true; } catch (e) { return false; } }
 
-  // Langlevend token aanmaken zodat we altijd stil opnieuw kunnen inloggen.
+  // Token aanmaken zodat we stil opnieuw kunnen inloggen. Bewust kort-levend
+  // (TOKEN_DAYS) en periodiek hermunt (maybeRefreshToken): een gelekt token
+  // verloopt dan vanzelf i.p.v. permanent geldig te blijven.
   async function makeToken() {
     try {
-      const b = new URLSearchParams(); b.set("expiration", "2099-12-31T23:59:59Z");
+      const exp = new Date(Date.now() + TOKEN_DAYS * 864e5);
+      const b = new URLSearchParams(); b.set("expiration", exp.toISOString());
       const r = await api("session/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: b.toString() });
-      if (r.ok) { let tok = (await r.text()).trim(); if (tok.startsWith('"') && tok.endsWith('"')) tok = tok.slice(1, -1); if (tok) store.set("token", tok); }
+      if (r.ok) { let tok = (await r.text()).trim(); if (tok.startsWith('"') && tok.endsWith('"')) tok = tok.slice(1, -1); if (tok) { store.set("token", tok); store.set("tokenExp", exp.getTime()); } }
     } catch (e) {}
+  }
+  // Hermunt het token als er geen is, de vervaldatum ontbreekt of oud is (migreert
+  // de oude permanente 2099-tokens omlaag), óf als er minder dan TOKEN_REFRESH_DAYS
+  // rest. Vereist een geldige sessie; faalt stil (dan blijft het oude token staan).
+  async function maybeRefreshToken() {
+    const exp = store.get("tokenExp", 0);
+    if (!store.get("token", null) || !exp || exp - Date.now() < TOKEN_REFRESH_DAYS * 864e5) await makeToken();
   }
   // Stil opnieuw inloggen met het opgeslagen token. true = gelukt.
   async function reloginToken() {
@@ -570,6 +582,13 @@
       if (r.ok) { const u = await r.json().catch(() => null); me = u && u.name ? u.name : me; return true; }
     } catch (e) {}
     return false;
+  }
+  // Expliciet uitloggen: server-sessie beëindigen, lokaal token wissen, herladen.
+  async function doLogout() {
+    try { await api("session", { method: "DELETE" }); } catch (e) {}
+    localStorage.removeItem("trace.token");
+    localStorage.removeItem("trace.tokenExp");
+    location.reload();
   }
 
   async function doLogin(ev) {
@@ -628,11 +647,11 @@
   function start() {
     // Merknaam toepassen (titel + login-kop) zodat hosts hun eigen naam kunnen zetten.
     try { document.title = BRAND; const be = $("brand"); if (be) be.textContent = BRAND; } catch (e) {}
-    if (!store.get("token", null)) makeToken();   // bestaande sessie → meteen token, geen extra login later
+    maybeRefreshToken();   // bestaande sessie → token (her)munten, geen extra login later
     initMap(); startGeo(); armCompass(); setFollow(true); renderPlaceMarkers(); refresh();
     scheduleRefresh();
     setInterval(tickEstimate, 1000);
-    checkVersion(); setInterval(checkVersion, 300000);
+    checkVersion(); setInterval(() => { checkVersion(); maybeRefreshToken(); }, 300000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(); });
     if ("Notification" in window && Notification.permission === "default" && notifs.length) { /* vraag pas bij eerste melding-aanmaak */ }
   }
@@ -654,6 +673,7 @@
   $("seg-lang").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; langPref = b.getAttribute("data-v"); store.set("lang", langPref); applyI18n(); markSeg("seg-lang", langPref); renderNotifList(); });
   $("seg-map").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; mapStyle = b.getAttribute("data-v"); store.set("mapStyle", mapStyle); applyMapStyle(); markSeg("seg-map", mapStyle); });
   if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (theme === "system") applyTheme(); });
+  $("logout").addEventListener("click", doLogout);
 
   (async function () {
     if (await checkSession()) start();
