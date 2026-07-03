@@ -32,6 +32,10 @@
     Header always set X-Frame-Options "DENY"
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # Content-Security-Policy: the viewer runs fully under this policy (no inline
+    # scripts/handlers). style-src keeps 'unsafe-inline' (the app uses inline
+    # style=). Adjust the tile hosts in img-src/connect-src to the map styles you use.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
 
     # Location data must never be cached — only on the API.
     <LocationMatch "^/api">
@@ -68,7 +72,10 @@
     ProxyPassReverse /api  http://127.0.0.1:8082/api
 
     ErrorLog  logs/baken-error_log
-    CustomLog logs/baken-access_log common
+    # Log without the query-string: token-login uses GET /api/session?token=…, so
+    # the default 'common' format would write the token (and geocoding coords) into
+    # the access log. This inline format logs method + path + protocol only.
+    CustomLog logs/baken-access_log "%h %l %u %t \"%m %U %H\" %>s %b"
 </VirtualHost>
 
 <VirtualHost *:80>

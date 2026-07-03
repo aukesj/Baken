@@ -8,6 +8,21 @@
 {$BAKEN_HOST} {
 	encode gzip
 
+	# --- Security headers (all responses) ------------------------------------
+	# The viewer runs fully under this CSP (no inline scripts/handlers); style-src
+	# keeps 'unsafe-inline' for the app's inline style=. Adjust the tile hosts in
+	# img-src/connect-src to the map styles you enable in viewer/config.js.
+	header {
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+	}
+
+	# Note: no access log is configured here, so the token in
+	# GET /api/session?token=… is never written to disk. If you add a `log`
+	# directive, filter the `token` query parameter out of the logged URI.
+
 	# --- REST API + WebSocket -> Traccar -------------------------------------
 	# Location data must never be cached by browsers or the service worker.
 	# Caddy's reverse_proxy upgrades WebSockets automatically (/api/socket).
