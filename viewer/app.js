@@ -583,8 +583,10 @@
     } catch (e) {}
     return false;
   }
-  // Expliciet uitloggen: server-sessie beëindigen, lokaal token wissen, herladen.
+  // Expliciet uitloggen: eerst bevestigen (je wilt bijna nooit uitloggen — een
+  // misklik mag je er niet uit gooien), dan server-sessie beëindigen, token wissen.
   async function doLogout() {
+    if (!confirm(t("logout_confirm"))) return;
     try { await api("session", { method: "DELETE" }); } catch (e) {}
     localStorage.removeItem("trace.token");
     localStorage.removeItem("trace.tokenExp");
