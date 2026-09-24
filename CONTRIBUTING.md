@@ -7,14 +7,12 @@ very welcome.
 
 ## Where development happens
 
-- **Primary home: [Codeberg](https://codeberg.org/jasperaukes/Baken).** Open
-  issues and pull requests here.
-- **GitHub is a read-only mirror** for discoverability. Please don't open PRs
-  there — they live on Codeberg.
+- **Home: [GitHub](https://github.com/aukesj/Baken).** Open issues and pull
+  requests there.
 
 ## Reporting bugs & requesting features
 
-Open an issue on Codeberg. For bugs, include:
+Open an issue on GitHub. For bugs, include:
 
 - what you did, what you expected, what happened;
 - your setup (OS, Docker version, reverse proxy used);

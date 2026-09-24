@@ -15,7 +15,7 @@ viewer + automatic HTTPS).
 ## Steps
 
 ```bash
-git clone https://codeberg.org/jasperaukes/Baken.git baken
+git clone https://github.com/aukesj/Baken.git baken
 cd baken
 
 # 1. Environment
