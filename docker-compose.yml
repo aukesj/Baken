@@ -5,8 +5,9 @@
 #   cp proxy/Caddyfile.example proxy/Caddyfile
 #   docker compose up -d
 #
-# Caddy serves the viewer, proxies the API/WebSocket to Traccar, forwards the
-# Overland bridge to php-fpm, and gets automatic HTTPS via Let's Encrypt.
+# Caddy serves the viewer, proxies the API to Traccar, forwards the Overland
+# bridge and the filtered device list to php-fpm, proxies address lookups to
+# OpenStreetMap's Nominatim, and gets automatic HTTPS via Let's Encrypt.
 
 services:
   traccar:
@@ -33,6 +34,7 @@ services:
     restart: unless-stopped
     environment:
       - BAKEN_OSMAND_URL=http://traccar:5055/
+      - BAKEN_TRACCAR_URL=http://traccar:8082/
       - BAKEN_DEFAULT_DEVICE_ID=${BAKEN_DEFAULT_DEVICE_ID:-}
     volumes:
       - ./bridge:/srv/bridge:ro
@@ -49,6 +51,7 @@ services:
       - "443:443"
     environment:
       - BAKEN_HOST=${BAKEN_HOST}
+      - BAKEN_CONTACT=${BAKEN_CONTACT:-}
     volumes:
       - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./viewer:/srv/viewer:ro

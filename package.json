@@ -1,0 +1,12 @@
+{
+  "name": "baken",
+  "private": true,
+  "description": "Baken — test tooling only (viewer/ itself ships with no build step).",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

@@ -20,7 +20,7 @@ cd baken
 
 # 1. Environment
 cp .env.example .env
-$EDITOR .env                       # set BAKEN_HOST=baken.example.com
+$EDITOR .env                       # set BAKEN_HOST=baken.example.com and BAKEN_CONTACT
 
 # 2. Traccar config
 cp traccar/traccar.xml.example traccar/traccar.xml
@@ -34,6 +34,29 @@ docker compose up -d
 
 Caddy will fetch a TLS certificate automatically (give it a minute on first
 run). Then open `https://baken.example.com/`.
+
+### Street names
+
+The viewer shows a street name next to each person. Caddy looks it up
+server-side at OpenStreetMap's public
+[Nominatim](https://nominatim.org/), so the viewers' browsers never send
+coordinates to a third party themselves. Nominatim's
+[usage policy](https://operations.osmfoundation.org/policies/nominatim/) asks
+for a contact address; that is `BAKEN_CONTACT` in `.env`.
+
+This does mean the *server* sends the coordinates of whoever is being looked at
+to OpenStreetMap. Don't want that? Point the `/geocode` block in
+`proxy/Caddyfile` at your own Nominatim, or remove it and set
+`showAddress: false` in `viewer/config.js`.
+
+### Photos on the pins (optional)
+
+Put a square photo per person in `viewer/images/`, named after the device name
+in lower case without spaces or punctuation (`Anne-Marie` → `annemarie.png`),
+about 256×256. Without one the pin shows a coloured initial. The folder is
+git-ignored. Note that these files are served like the rest of the viewer,
+without a login; leave the folder empty (or set `photoPath: ""` in
+`viewer/config.js`) if that is not acceptable to you.
 
 ## First login (create the admin)
 

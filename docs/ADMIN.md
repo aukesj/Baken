@@ -56,7 +56,19 @@ tail -f traccar/logs/tracker-server.log   # raw Traccar device log
 When debugging a phone that "won't update", the Traccar log shows each incoming
 fix (and `Unknown device` if the identifier is wrong).
 
-## The Overland bridge
+## The bridge
+
+The `bridge` container (php-fpm) serves two small scripts.
+
+### Device list (`/api/devices`)
+
+`devices.php` passes the viewer's cookie on to Traccar (`BAKEN_TRACCAR_URL`,
+default `http://traccar:8082/` in the compose file) and removes each device's
+`uniqueId` from the answer. If Traccar says 401, so does the script, and the
+viewer logs in again silently. If the bridge is down, the viewer keeps the
+device list it already had and still moves the pins.
+
+### Overland (`/overland`)
 
 `/overland` is served by the `bridge` container (php-fpm) and forwards to
 Traccar's OsmAnd endpoint. It:
@@ -71,6 +83,13 @@ Traccar's OsmAnd endpoint. It:
 
 - Device **Identifiers** are bearer secrets — anyone who knows one can post that
   device's location. Use long random values and share them privately.
+- The public proxy therefore never hands them out: `/api/devices` goes through
+  `bridge/devices.php`, which returns Traccar's own answer (same session, same
+  permissions) minus the `uniqueId` field. `/api/devices/<id>` and the
+  WebSocket (`/api/socket`) are closed on the public host; the Traccar admin UI
+  keeps both over the SSH tunnel.
+- The session cookie gets `Secure`, `HttpOnly` and `SameSite=Strict` from the
+  proxy.
 - TLS is handled by Caddy automatically. Keep ports 80/443 open for renewals.
 - Location responses are sent with `Cache-Control: no-store` so they never land
   in a browser or service-worker cache.

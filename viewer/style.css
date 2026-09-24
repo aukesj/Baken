@@ -11,6 +11,10 @@
   --shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
+  /* Hoogte van de knoppenstapel rechtsonder: twee knoppen van 54 met 10
+     ertussen. De instellingen-pop-up staat precies daarboven, zodat het
+     tandwiel zichtbaar en indrukbaar blijft. */
+  --fabstack: 118px;
 }
 body.dark {
   --bg: #15171c; --card: rgba(30, 33, 40, 0.96); --text: #eceef2; --dim: #9aa0ab;
@@ -24,12 +28,18 @@ html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystem
    die de onderste safe-area (home-indicator) NIET meeneemt → donkere strook.
    Normale flow + 100dvh + viewport-fit=cover vult wél tot de fysieke randen
    (zelfde aanpak als de tictactoe-PWA). */
-body { height: 100dvh; overflow: hidden; overscroll-behavior: none; background: var(--bg); touch-action: manipulation; }
+/* --vh wordt alleen gezet als iOS de pagina korter maakt dan het scherm
+   (fillViewportGap in app.js); zonder die correctie is dit gewoon 100dvh. */
+body { height: var(--vh, 100dvh); overflow: hidden; overscroll-behavior: none; background: var(--bg); touch-action: manipulation; }
 .hidden { display: none !important; }
-#map { width: 100%; height: 100dvh; background: var(--bg); }
-/* Leaflet-knopjes (zoom + attributie) boven de home-indicator houden. */
-.leaflet-bottom { margin-bottom: env(safe-area-inset-bottom, 0px); }
-body.dark .leaflet-control-zoom a { background: #232730; color: #eceef2; border-color: #2c2f38; }
+#map { width: 100%; height: var(--vh, 100dvh); background: var(--bg); }
+/* Kaartknoppen (zoom, kompas, attributie) boven de home-indicator houden.
+   --vhgap is het stuk dat de kaart onder de layout-viewport doorloopt als iOS
+   de pagina te kort maakt; de knoppen zakken anders mee. */
+.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { margin-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vhgap, 0px)); }
+body.dark .maplibregl-ctrl-group { background: #232730; }
+body.dark .maplibregl-ctrl-group button + button { border-top-color: #2c2f38; }
+body.dark .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }
 
 /* Find-My-achtige pulserende gloed rond het foto-vaantje: begint strak om de
    foto en dijt rustig uit, twee gestaggerde ringen die blijven herhalen. */
@@ -40,8 +50,10 @@ body.dark .leaflet-control-zoom a { background: #232730; color: #eceef2; border-
 }
 .ppulse { position: absolute; left: 50%; top: 23px; width: 46px; height: 46px; border-radius: 50%; pointer-events: none; animation: trace-pulse 2.4s ease-out infinite; }
 .ppulse.d { animation-delay: 1.2s; }
-/* Donker thema verdonkert lichte kaarten; de Donkere kaartstijl zelf niet. */
-body.dark:not(.mapstyle-dark) .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
+/* Donker thema verdonkert lichte kaarten; een kaart die zelf al donker is
+   (iMap) niet. MapLibre tekent alle tegels op één canvas, dus het filter gaat
+   over dat canvas; pins en pop-ups staan ernaast in de DOM en blijven gewoon. */
+body.dark:not(.mapstyle-dark) .maplibregl-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
 
 /* ---- bovenkaart ---- */
 .card {
@@ -58,6 +70,16 @@ body.dark:not(.mapstyle-dark) .leaflet-tile { filter: invert(1) hue-rotate(180de
 .card .meta { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
 .card .meta:empty { display: none; }
 .card .arrow { display: inline-block; font-weight: 700; }
+/* Echte batterij-indicator: een omhulsel met een vulbalk die meeschaalt met
+   het percentage, i.p.v. het statische 🔋 dat er altijd vol uitziet. */
+.batt { display: inline-flex; align-items: center; gap: 1px; }
+.batt-body {
+  position: relative; width: 24px; height: 12px; border-radius: 3px;
+  border: 1.5px solid var(--dim); padding: 1.5px; background: transparent;
+}
+.batt-fill { display: block; height: 100%; border-radius: 1.5px; transition: width .3s ease; }
+.batt-cap { width: 2px; height: 5px; border-radius: 0 1.5px 1.5px 0; background: var(--dim); }
+.batt-pct { margin-left: 2px; }
 .card .seen { font-size: 12px; color: var(--dim); margin-top: 6px; }
 
 /* ---- toast ---- */
@@ -66,21 +88,46 @@ body.dark:not(.mapstyle-dark) .leaflet-tile { filter: invert(1) hue-rotate(180de
   margin: 0 auto; max-width: 460px; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
   padding: 12px 16px; border-radius: 14px; box-shadow: var(--shadow); animation: pop .2s ease;
 }
+/* Meerdere meldingen tegelijk staan onder elkaar met een lijn ertussen. De
+   max-height is een vangnet: een onwaarschijnlijke stapel vult het scherm niet. */
+.toast { max-height: 40vh; overflow-y: auto; }
+.toast-line + .toast-line {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .3);
+}
 @keyframes pop { from { transform: translateY(8px); opacity: 0; } }
 
 /* ---- fabs ---- */
-#fabs { position: fixed; z-index: 1000; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(18px + var(--safe-b)); display: flex; flex-direction: column; gap: 10px; }
+/* Boven de instellingen-pop-up en zijn backdrop: het tandwiel is de weg terug. */
+#fabs { position: fixed; z-index: 2100; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(18px + var(--safe-b)); display: flex; flex-direction: column; gap: 10px; }
 .fab { width: 54px; height: 54px; border-radius: 50%; border: 0; background: var(--card); color: var(--accent); box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center; touch-action: manipulation; }
 .fab svg { width: 30px; height: 30px; display: block; }
 .fab:active { transform: scale(0.94); }
 .fab.active { background: var(--accent); color: #fff; }
 
-/* ---- sheet ---- */
-#sheet-backdrop { position: fixed; inset: 0; z-index: 1900; background: rgba(0, 0, 0, .4); }
-.sheet { position: fixed; z-index: 2000; left: 0; right: 0; bottom: 0; background: var(--bg); border-radius: 20px 20px 0 0; box-shadow: var(--shadow); padding: 8px 18px calc(18px + var(--safe-b)); max-height: 88%; overflow-y: auto; animation: slideup .16s ease; }
-@keyframes slideup { from { transform: translateY(100%); } }
-.sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 6px auto 12px; }
-.sheet h2 { margin: 0 0 14px; font-size: 20px; }
+/* ---- instellingen-pop-up ----
+   Geen bottom sheet meer: de pop-up staat boven de knoppen rechtsonder en
+   laat de kaart eromheen vrij. De backdrop is onzichtbaar en vangt alleen de
+   tik die hem sluit. */
+#sheet-backdrop, #confirm-backdrop { position: fixed; inset: 0; z-index: 1900; background: transparent; }
+#confirm-backdrop { z-index: 2200; background: rgba(0, 0, 0, .35); }
+.sheet {
+  position: fixed; z-index: 2000;
+  left: calc(14px + env(safe-area-inset-left, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: calc(30px + var(--safe-b) + var(--fabstack));
+  margin-left: auto; max-width: 380px;
+  /* Past het niet, dan scrollt het binnen zichzelf. */
+  max-height: min(58vh, calc(var(--vh, 100dvh) - var(--safe-t) - var(--safe-b) - var(--fabstack) - 80px));
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: var(--bg); border-radius: 18px; box-shadow: 0 10px 40px rgba(0, 0, 0, .28);
+  padding: 0 16px 16px; animation: popin .16s ease;
+}
+@keyframes popin { from { transform: translateY(10px) scale(.97); opacity: 0; } }
+/* De kop blijft staan bij scrollen, anders raak je onder Geavanceerd de
+   terugknop kwijt. */
+.sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 6px; background: var(--bg); border-bottom: 1px solid var(--line); padding: 14px 0 10px; margin-bottom: 14px; }
+.sheet h2 { margin: 0; font-size: 19px; }
+.backbtn { border: 0; background: transparent; color: var(--accent); padding: 4px 6px 4px 0; margin-left: -4px; cursor: pointer; display: grid; place-items: center; }
 .sheet section { margin-bottom: 22px; }
 .sheet h3 { margin: 0 0 8px; font-size: 14px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
 .version { text-align: center; color: var(--dim); font-size: 12px; opacity: .7; margin-top: 4px; }
@@ -102,8 +149,27 @@ body.dark:not(.mapstyle-dark) .leaflet-tile { filter: invert(1) hue-rotate(180de
 
 .del { border: 0; background: #ffe3e3; color: #c0392b; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
 body.dark .del { background: #44232a; color: #ff9a9a; }
+.wide { width: 100%; background: var(--field); border: 1px solid var(--line); color: var(--text); font-weight: 600; font-size: 15px; padding: 13px; border-radius: 12px; cursor: pointer; }
+.hint { margin: 8px 0 0; font-size: 13px; color: var(--dim); line-height: 1.4; }
 .logout { width: 100%; border: 0; background: var(--field); border: 1px solid var(--line); color: #c0392b; font-weight: 600; font-size: 15px; padding: 13px; border-radius: 12px; cursor: pointer; }
 body.dark .logout { color: #ff9a9a; }
+
+/* ---- bevestigingsdialoog ----
+   Vervangt de kale confirm() van de browser. Annuleren is de voorkeurskeuze
+   en ziet er ook zo uit. */
+.dialog {
+  position: fixed; z-index: 2300; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(88%, 320px); background: var(--bg); color: var(--text);
+  border-radius: 16px; padding: 20px; box-shadow: 0 12px 44px rgba(0, 0, 0, .34);
+  animation: popin .14s ease;
+}
+.dialog h3 { margin: 0 0 8px; font-size: 18px; }
+.dialog p { margin: 0; font-size: 14px; color: var(--dim); line-height: 1.4; }
+.dlg-btns { display: flex; gap: 10px; margin-top: 18px; }
+.dlg-btn { flex: 1; border: 0; border-radius: 12px; padding: 13px 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.dlg-btn.primary { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px rgba(63, 81, 181, .28); }
+.dlg-btn.danger { background: #ffd9d9; color: #c0392b; }
+body.dark .dlg-btn.danger { background: #4a2429; color: #ff9a9a; }
 
 /* ---- pop-up ---- */
 .pop { min-width: 210px; font-size: 14px; }
@@ -124,8 +190,17 @@ body.dark .pop-btn.danger { background: #44232a; color: #ff9a9a; }
 .notif-form select { padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--text); }
 .notif-form label { font-size: 14px; }
 
-/* leaflet popup in dark */
-body.dark .leaflet-popup-content-wrapper, body.dark .leaflet-popup-tip { background: var(--card); color: var(--text); }
+/* Een pop-up hoort boven de pins, ook boven de persoon-pin met zijn eigen
+   z-index; anders ligt een pin over de verwijderknop van de plek eronder. */
+.maplibregl-popup { z-index: 20; }
+
+/* kaart-pop-up in dark */
+body.dark .maplibregl-popup-content { background: var(--card); color: var(--text); }
+body.dark .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--card); }
+body.dark .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--card); }
+body.dark .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--card); }
+body.dark .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--card); }
+body.dark .maplibregl-popup-close-button { color: var(--text); }
 
 /* ---- login ---- */
 #login { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: var(--accent); }

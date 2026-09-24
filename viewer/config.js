@@ -6,8 +6,7 @@
 window.BAKEN_CONFIG = {
   brandName: "Baken",   // naam in titel, login en meldingen / shown in title, login, notifications
   refreshMs: 30000,     // basis ververs-interval; verkort automatisch bij beweging
-  zoom: 15,             // zoom bij centreren / zoom when centering
-  showAddress: true,    // straatnaam tonen via server-side /geocode
-  defaultRadius: 150,   // standaard straal (m) voor een nieuwe plaats
-  routingUrl: "",       // optioneel OSRM-endpoint voor weg-volgende schatting; leeg = rechte lijn
+  showAddress: true,    // straatnaam tonen via server-side /geocode (zie proxy/) / street name via the proxy's /geocode
+  defaultRadius: 150,   // standaard straal (m) voor een nieuwe plaats / default radius (m) of a new place
+  photoPath: "images/", // gezichtsfoto's <naam>.png; "" = alleen initialen / face photos <name>.png; "" = initials only
 };

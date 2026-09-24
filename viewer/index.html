@@ -11,7 +11,6 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" href="icon-192.png">
-  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -50,15 +49,22 @@
     </button>
   </div>
 
-  <!-- instellingen -->
+  <!-- instellingen: een pop-up boven de knoppen rechtsonder, zodat het
+       tandwiel zichtbaar blijft en dezelfde knop hem weer sluit -->
   <div id="sheet-backdrop" class="hidden"></div>
-  <div id="sheet" class="sheet hidden">
-    <div class="sheet-handle"></div>
-    <h2 data-i18n="settings">Instellingen</h2>
+  <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-head"><h2 id="sheet-title" data-i18n="settings">Instellingen</h2></div>
 
     <section id="sec-who" class="hidden">
       <h3 data-i18n="who">Wie tonen</h3>
       <ul id="who-list" class="checks"></ul>
+    </section>
+
+    <!-- Alleen zichtbaar zolang er geen kompas is: dan is dit de weg terug. -->
+    <section id="sec-compass" class="hidden">
+      <h3 data-i18n="compass">Kompas</h3>
+      <button id="compass-on" class="wide" type="button" data-i18n="compass_on">Kompas aanzetten</button>
+      <p class="hint" id="compass-hint"></p>
     </section>
 
     <section>
@@ -95,10 +101,35 @@
     </section>
 
     <section>
-      <button id="logout" class="logout" type="button" data-i18n="logout">Uitloggen</button>
+      <button id="open-adv" class="wide" type="button" data-i18n="advanced">Geavanceerd</button>
     </section>
 
     <div class="version" id="ver"></div>
+  </div>
+
+  <!-- Geavanceerd: de tweede laag. Sluiten brengt je terug naar Instellingen. -->
+  <div id="adv" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="adv-title">
+    <div class="sheet-head">
+      <button id="adv-back" class="backbtn" type="button" aria-label="back">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 7 12 15 20"></polyline></svg>
+      </button>
+      <h2 id="adv-title" data-i18n="advanced">Geavanceerd</h2>
+    </div>
+
+    <section>
+      <button id="logout" class="logout" type="button" data-i18n="logout">Uitloggen</button>
+    </section>
+  </div>
+
+  <!-- Uitloggen bevestigen: Annuleren is de voorkeurskeuze -->
+  <div id="confirm-backdrop" class="hidden"></div>
+  <div id="logout-dlg" class="dialog hidden" role="dialog" aria-modal="true" aria-labelledby="logout-dlg-title">
+    <h3 id="logout-dlg-title" data-i18n="logout">Uitloggen</h3>
+    <p data-i18n="logout_confirm">Weet je zeker dat je wilt uitloggen?</p>
+    <div class="dlg-btns">
+      <button id="logout-cancel" class="dlg-btn primary" type="button" data-i18n="cancel">Annuleren</button>
+      <button id="logout-yes" class="dlg-btn danger" type="button" data-i18n="logout">Uitloggen</button>
+    </div>
   </div>
 
   <!-- login -->
@@ -113,11 +144,10 @@
     </form>
   </div>
 
-  <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/maplibre/maplibre-gl.js"></script>
-  <script src="vendor/maplibre/leaflet-maplibre-gl.js"></script>
   <script src="config.js"></script>
   <script src="i18n.js"></script>
+  <script src="helpers.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

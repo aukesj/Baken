@@ -29,9 +29,11 @@ issue. Redact them.
 ```
 viewer/    static PWA (vanilla JS, no build step) — the map UI
 bridge/    overland.php — translates Overland JSON to Traccar's OsmAnd endpoint
+           devices.php — Traccar's device list without the uniqueId
 traccar/   Traccar config template (upstream server, not vendored)
 proxy/     Caddy (default) and Apache (reference) reverse-proxy templates
 docs/      INSTALL / SETUP / ADMIN / USE
+tests/     unit (node --test), e2e (Playwright, fake Traccar), bridge (php)
 ```
 
 ## Local development
@@ -43,6 +45,18 @@ just serve the folder and point it at a Traccar instance.
 # Serve the viewer locally
 cd viewer && python3 -m http.server 8000
 ```
+
+### Tests
+
+```bash
+npm install                      # only Playwright, for the e2e tests
+npm test                         # pure functions in viewer/helpers.js + a CSP source check
+npm run test:e2e                 # the viewer in Chromium under the proxy's CSP, against a fake Traccar
+sh tests/bridge/devices.test.sh  # bridge/devices.php against a fake Traccar (needs php + curl)
+```
+
+The e2e server (`tests/e2e/csp-static-server.js`) sends the same
+Content-Security-Policy as `proxy/`; change them together.
 
 For a full stack, run `docker compose up -d` against a test domain (or use the
 localhost Traccar UI via the SSH-tunnel described in docs/INSTALL.md). Please

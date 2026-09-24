@@ -7,3 +7,8 @@ data/
 logs/
 certs/
 .DS_Store
+node_modules/
+test-results/
+playwright-report/
+# Gezichtsfoto's horen niet in git
+viewer/images/

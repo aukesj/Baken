@@ -20,7 +20,15 @@ You stay logged in; you shouldn't have to type your password again.
 - When someone is moving (above ~3 km/h) you'll see a 🚗 and their speed.
   Between GPS updates the pin glides along smoothly for a live feel.
 - Your **own** position is the blue dot, with a soft direction beam if you grant
-  compass access.
+  compass access. On iPhone the app asks on your first tap; if that didn't
+  work, open ⚙️ Settings → **Turn on the compass**.
+- **Rotate** the map with two fingers. The compass button at the bottom left
+  turns it back to north.
+- **Places**: tap a person or **press and hold** on the map to name a spot
+  ("home", "school"). Tap a place to rename it, delete it, or set a
+  notification for when someone arrives or leaves.
+- ⚙️ **Settings** opens above the buttons at the bottom right; tap the gear
+  again to close it. Logging out is under **Advanced**.
 
 ## Sharing your own location (members)
 
@@ -46,6 +54,7 @@ your device.
 
 - Your places ("home", "school") and notifications are stored **only on your
   phone**, not on the server.
+- Street names are looked up by the server at OpenStreetMap, not by your phone.
 - Only the people your host explicitly linked can see you — and only if you run a
   publishing app.
 - Nobody but the host controls the visibility graph; other members can't see each
