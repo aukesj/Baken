@@ -8,12 +8,12 @@
 #   - You expose Traccar on the host: 127.0.0.1:8082 (web/API) and
 #     127.0.0.1:5055 (OsmAnd). Add those port mappings to docker-compose, or run
 #     Traccar directly.
-#   - A local php-fpm serves the bridge directory (Baken/bridge) with the env
-#     vars BAKEN_OSMAND_URL=http://127.0.0.1:5055/ etc.
-#   - Replace YOUR_HOST and the paths below. TLS is up to you (e.g. certbot).
+#   - A local php-fpm (with the curl extension) serves the bridge directory
+#     (Baken/bridge): overland.php and devices.php.
+#   - Replace YOUR_HOST, YOUR_CONTACT and the paths below. TLS is up to you
+#     (e.g. certbot).
 #
-# Required modules: proxy, proxy_http, proxy_wstunnel, rewrite, headers,
-# proxy_fcgi (for php-fpm).
+# Required modules: proxy, proxy_http, proxy_fcgi, ssl, rewrite, headers, alias.
 
 <VirtualHost *:443>
     ServerName YOUR_HOST
@@ -26,6 +26,11 @@
     DocumentRoot /opt/baken/viewer
     <Directory /opt/baken/viewer>
         Require all granted
+        Options -Indexes
+        AllowOverride None
+        # Always revalidate, so a reload never runs an old app (usually a
+        # cheap 304). An open app also reloads itself when version.json changes.
+        Header set Cache-Control "no-cache, must-revalidate"
     </Directory>
 
     # Security headers
@@ -34,8 +39,19 @@
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     # Content-Security-Policy: the viewer runs fully under this policy (no inline
     # scripts/handlers). style-src keeps 'unsafe-inline' (the app uses inline
-    # style=). Adjust the tile hosts in img-src/connect-src to the map styles you use.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    # style=). The map is MapLibre, which fetches raster tiles too, so the tile
+    # hosts are on connect-src as well as img-src. Adjust them to the map styles
+    # you offer. tests/e2e checks the viewer against this exact policy.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; connect-src 'self' https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+
+    # The session cookie: Traccar sets JSESSIONID without attributes. Add
+    # Secure, HttpOnly and SameSite=Strict here, per app, so a shared Traccar is
+    # left alone. Nothing in the viewer reads document.cookie; on a link from
+    # another site the viewer silently logs in again with its token.
+    # Two lines on purpose: the cookie from the proxy arrives in headers_out,
+    # which the `always` form alone does not touch.
+    Header edit        Set-Cookie ^(JSESSIONID=.*)$ "$1; Secure; HttpOnly; SameSite=Strict"
+    Header always edit Set-Cookie ^(JSESSIONID=.*)$ "$1; Secure; HttpOnly; SameSite=Strict"
 
     # Location data must never be cached — only on the API.
     <LocationMatch "^/api">
@@ -44,30 +60,60 @@
 
     ProxyPreserveHost On
     ProxyRequests Off
+    SSLProxyEngine On
 
-    # WebSocket first (Traccar live updates)
-    RewriteEngine On
-    RewriteCond %{HTTP:Upgrade} websocket [NC]
-    RewriteCond %{HTTP:Connection} upgrade [NC]
-    RewriteRule ^/api/socket(.*) ws://127.0.0.1:8082/api/socket$1 [P,L]
+    # PHP bridge (php-fpm): the Overland endpoint and the filtered device list.
+    <Directory /opt/baken/bridge>
+        Require all granted
+        # Pass Basic auth on to devices.php (curl, scripts); the browser uses
+        # the session cookie.
+        CGIPassAuth On
+    </Directory>
+    <FilesMatch "\.php$">
+        SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost"
+    </FilesMatch>
+    SetEnv BAKEN_OSMAND_URL  http://127.0.0.1:5055/
+    SetEnv BAKEN_TRACCAR_URL http://127.0.0.1:8082/
+
+    # Overland bridge
+    Alias /overland /opt/baken/bridge/overland.php
+
+    # Device list, without the uniqueId. Traccar's /api/devices hands every
+    # viewer each device's uniqueId, and that id is all /track needs to post
+    # positions in that device's name. devices.php asks Traccar the same
+    # question with the viewer's own session and drops that one field.
+    Alias /api/devices /opt/baken/bridge/devices.php
+    # Per-device routes and the WebSocket (which pushes full device records)
+    # are for the Traccar admin UI over the SSH tunnel, not this public proxy.
+    RedirectMatch 404 ^/api/(devices/.*|socket.*)$
 
     # Device publish (Traccar Client app, OsmAnd protocol)
     ProxyPass        /track  http://127.0.0.1:5055/
     ProxyPassReverse /track  http://127.0.0.1:5055/
 
-    # Overland bridge via php-fpm
-    Alias /overland /opt/baken/bridge/overland.php
-    <Directory /opt/baken/bridge>
-        Require all granted
-    </Directory>
-    <FilesMatch "\.php$">
-        SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost"
-    </FilesMatch>
+    # Address lookup (street names in the viewer): server-side reverse
+    # geocoding through OpenStreetMap's public Nominatim, so the viewer's
+    # browser never hands the coordinates to a third party itself. Nominatim's
+    # usage policy asks for an identifying User-Agent with a contact address.
+    # Cookies, the Authorization header and the client's IP are not passed on.
+    # Don't want addresses? Remove this block and set showAddress:false in
+    # viewer/config.js.
+    <Location /geocode>
+        ProxyPreserveHost Off
+        ProxyAddHeaders Off
+        RequestHeader unset Cookie
+        RequestHeader unset Authorization
+        RequestHeader unset Referer
+        RequestHeader set User-Agent "Baken (YOUR_HOST; YOUR_CONTACT)"
+        Header set Cache-Control "private, max-age=3600"
+        ProxyPass        https://nominatim.openstreetmap.org/reverse
+        ProxyPassReverse https://nominatim.openstreetmap.org/reverse
+    </Location>
 
-    # REST API + web (everything else not matched above)
-    ProxyPass        /api/socket !
-    ProxyPass        /track      !
-    ProxyPass        /overland   !
+    # REST API (everything under /api not matched above). The exclusions must
+    # come before the general /api line: the first matching ProxyPass wins.
+    ProxyPass        /api/devices !
+    ProxyPass        /api/socket  !
     ProxyPass        /api  http://127.0.0.1:8082/api
     ProxyPassReverse /api  http://127.0.0.1:8082/api
 

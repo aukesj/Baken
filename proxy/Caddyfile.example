@@ -1,34 +1,63 @@
 # Baken — Caddy reverse proxy. Copy to proxy/Caddyfile.
 # Automatic HTTPS: Caddy obtains and renews a Let's Encrypt cert for BAKEN_HOST.
 #
-# Everything is in `handle` blocks so routing is unambiguous (matched in source
-# order). Don't mix bare directives with handle blocks — the catch-all handle
-# below would otherwise swallow /api requests.
+# Everything is in `handle` blocks so routing is unambiguous. The more specific
+# paths come first; don't mix bare directives with handle blocks — the
+# catch-all handle below would otherwise swallow /api requests.
 
 {$BAKEN_HOST} {
 	encode gzip
 
 	# --- Security headers (all responses) ------------------------------------
 	# The viewer runs fully under this CSP (no inline scripts/handlers); style-src
-	# keeps 'unsafe-inline' for the app's inline style=. Adjust the tile hosts in
-	# img-src/connect-src to the map styles you enable in viewer/config.js.
+	# keeps 'unsafe-inline' for the app's inline style=. The map is MapLibre, which
+	# fetches raster tiles too, so the tile hosts are on connect-src as well as
+	# img-src. Adjust them to the map styles you offer. tests/e2e checks the
+	# viewer against this exact policy.
 	header {
 		X-Frame-Options "DENY"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; connect-src 'self' https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.fr https://tiles.openfreemap.org; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
 	}
 
 	# Note: no access log is configured here, so the token in
-	# GET /api/session?token=… is never written to disk. If you add a `log`
-	# directive, filter the `token` query parameter out of the logged URI.
+	# GET /api/session?token=… (and the coordinates in /geocode?lat=…) are never
+	# written to disk. If you add a `log` directive, filter the query string out
+	# of the logged URI.
 
-	# --- REST API + WebSocket -> Traccar -------------------------------------
-	# Location data must never be cached by browsers or the service worker.
-	# Caddy's reverse_proxy upgrades WebSockets automatically (/api/socket).
-	handle /api/* {
+	# --- Device list, without the uniqueId -----------------------------------
+	# Traccar's /api/devices hands every viewer each device's uniqueId, and that
+	# id is all /track needs to post positions in that device's name.
+	# bridge/devices.php asks Traccar the same question with the viewer's own
+	# session and drops that one field. Must come before the general /api block.
+	handle /api/devices {
 		header Cache-Control "no-store"
-		reverse_proxy traccar:8082
+		root * /srv/bridge
+		rewrite * /devices.php?{query}
+		php_fastcgi bridge:9000
+	}
+	# Per-device routes (and writes) are for the Traccar admin UI, which you
+	# reach over the SSH tunnel, not through this public proxy.
+	handle /api/devices/* {
+		respond 404
+	}
+	# The WebSocket pushes full device records (uniqueId included) and the
+	# viewer does not use it. The admin UI keeps it over the SSH tunnel.
+	handle /api/socket* {
+		respond 404
+	}
+
+	# --- REST API -> Traccar -------------------------------------------------
+	# Location data must never be cached by browsers or the service worker.
+	# The session cookie gets Secure, HttpOnly and SameSite=Strict here (Traccar
+	# sets none of them). Nothing in the viewer reads document.cookie, and on a
+	# link from another site the viewer silently logs in again with its token.
+	handle /api/* {
+		reverse_proxy traccar:8082 {
+			header_down Cache-Control "no-store"
+			header_down Set-Cookie "^(JSESSIONID=.*)$" "$1; Secure; HttpOnly; SameSite=Strict"
+		}
 	}
 
 	# --- Device publish (OsmAnd protocol: Traccar Client app) ----------------
@@ -43,19 +72,37 @@
 		php_fastcgi bridge:9000
 	}
 
-	# --- Optional: address lookup via your own Nominatim ---------------------
-	# The viewer can show street names (config.js showAddress:true). That needs
-	# a reverse-geocoder. If you run one, uncomment and point these at it;
-	# otherwise set showAddress:false in viewer/config.js.
-	# handle_path /geocode/* {
-	# 	reverse_proxy nominatim:8080
-	# }
-	# handle_path /geosearch/* {
-	# 	reverse_proxy nominatim:8080
-	# }
+	# --- Address lookup (street names in the viewer) -------------------------
+	# Server-side reverse geocoding through OpenStreetMap's public Nominatim, so
+	# the viewer's browser never hands the coordinates to a third party itself.
+	# Nominatim's usage policy asks for an identifying User-Agent with a contact
+	# address: set BAKEN_CONTACT in .env. Cookies, the Authorization header and
+	# the client's IP are not passed on.
+	#
+	# Running your own Nominatim? Point reverse_proxy at it instead. Don't want
+	# addresses at all? Remove this block and set showAddress:false in
+	# viewer/config.js (without it the viewer notices the 404 and stops asking).
+	handle /geocode {
+		rewrite * /reverse?{query}
+		reverse_proxy https://nominatim.openstreetmap.org {
+			header_up Host nominatim.openstreetmap.org
+			header_up User-Agent "Baken ({$BAKEN_HOST}; {$BAKEN_CONTACT:no contact set})"
+			header_up -Cookie
+			header_up -Authorization
+			header_up -Referer
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_down Cache-Control "private, max-age=3600"
+		}
+	}
 
 	# --- Viewer (static PWA) — everything else -------------------------------
+	# Always revalidate, so a reload never runs an old app (the answer is
+	# usually a cheap 304). An open app also reloads itself when version.json
+	# changes.
 	handle {
+		header Cache-Control "no-cache"
 		root * /srv/viewer
 		file_server
 	}
