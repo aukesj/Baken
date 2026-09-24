@@ -48,7 +48,8 @@ Find My and Google location sharing work — but every location you share flows 
 ## Key features
 
 - 📍 **Live map** with photo pins, accuracy circles, distance & bearing to each person, and "last seen" times.
-- 🧭 **Live feel** — between GPS fixes the marker glides forward along the last heading/speed (dead reckoning), with an honestly-growing uncertainty circle. Optional **road-following** via a routing backend.
+- 🧭 **Live feel** — between GPS fixes the marker glides forward along the last heading/speed (dead reckoning), with an honestly-growing uncertainty circle. A fix that is more than two minutes old is never extrapolated: the pin stays on the last real position.
+- 🔄 **Rotate with two fingers**, with a compass button to snap back to north; your own heading beam and the arrow to each person turn with the map.
 - 🔀 **Asymmetric visibility** — per-user, per-device permissions; spokes can see the hub's live position without its history.
 - 🙈 **Follower role** — watch-only users who never publish their location.
 - 🔋 **Battery & real accuracy** on iOS via the Overland bridge; Android/other via the Traccar Client (OsmAnd protocol).
@@ -65,20 +66,20 @@ Find My and Google location sharing work — but every location you share flows 
   └─────────────┘                                             ▼
                                                        ┌──────────────┐
    followers' browsers ◄──── Baken viewer (PWA) ◄───── │   Traccar    │
-   (position computed locally, never sent)   REST/WS   │  (storage +  │
+   (position computed locally, never sent)    REST     │  (storage +  │
                                                        │  protocols)  │
                                                        └──────────────┘
         reverse proxy (Apache/Caddy) terminates TLS and routes everything
 ```
 
-The **viewer** is a static PWA. The **bridge** is a tiny PHP script translating Overland's JSON into Traccar's OsmAnd endpoint. **Traccar** stores positions and enforces permissions. A **reverse proxy** ties it together behind one hostname with TLS.
+The **viewer** is a static PWA. The **bridge** is a pair of tiny PHP scripts: one translates Overland's JSON into Traccar's OsmAnd endpoint, the other hands the viewer Traccar's device list without the device identifiers (which would let a viewer post positions in someone else's name). **Traccar** stores positions and enforces permissions. A **reverse proxy** ties it together behind one hostname with TLS.
 
 ## Quick start
 
 ```bash
 git clone https://codeberg.org/jasperaukes/Baken.git baken
 cd baken
-cp .env.example .env      # set hostname, admin credentials, etc.
+cp .env.example .env      # set BAKEN_HOST and BAKEN_CONTACT
 docker compose up -d
 ```
 
@@ -106,7 +107,7 @@ These are ideas on the roadmap — not yet built. Contributions welcome.
 
 ## Built on
 
-[Traccar](https://www.traccar.org/) (GPS server) · [Overland](https://overland.p3k.app/) & Traccar Client (mobile clients) · [Leaflet](https://leafletjs.com/) / [MapLibre](https://maplibre.org/) (map) · OpenStreetMap data. Baken is an independent project and is not affiliated with or endorsed by Apple, Google, or Traccar.
+[Traccar](https://www.traccar.org/) (GPS server) · [Overland](https://overland.p3k.app/) & Traccar Client (mobile clients) · [MapLibre GL JS](https://maplibre.org/) (map) · OpenStreetMap data. Baken is an independent project and is not affiliated with or endorsed by Apple, Google, or Traccar.
 
 ## License
 
