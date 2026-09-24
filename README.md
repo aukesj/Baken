@@ -8,7 +8,7 @@
 
 [Quick start](docs/INSTALL.md) · [Setup & users](docs/SETUP.md) · [Admin](docs/ADMIN.md) · [Daily use](docs/USE.md) · [License: AGPL-3.0](LICENSE)
 
-<sub>Canonical home: **[Codeberg](https://codeberg.org/jasperaukes/Baken)**. The GitHub repo is a read-only mirror — please file issues & PRs on Codeberg.</sub>
+<sub>Home: **[GitHub](https://github.com/aukesj/Baken)**. Please file issues & PRs there.</sub>
 
 </div>
 
@@ -77,7 +77,7 @@ The **viewer** is a static PWA. The **bridge** is a pair of tiny PHP scripts: on
 ## Quick start
 
 ```bash
-git clone https://codeberg.org/jasperaukes/Baken.git baken
+git clone https://github.com/aukesj/Baken.git baken
 cd baken
 cp .env.example .env      # set BAKEN_HOST and BAKEN_CONTACT
 docker compose up -d
