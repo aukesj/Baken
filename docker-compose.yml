@@ -42,6 +42,28 @@ services:
     depends_on:
       - traccar
 
+  pruner:
+    # Verwijdert elk kwartier posities ouder dan BAKEN_RETENTION_HOURS; de
+    # nieuwste positie per apparaat blijft. Uit zolang die leeg is. Het
+    # pruner-account maak je in Traccar aan (docs/ADMIN.md). Niet publiek:
+    # Caddy kent deze container niet.
+    image: php:8.3-cli-alpine
+    container_name: baken-pruner
+    restart: unless-stopped
+    environment:
+      - BAKEN_TRACCAR_URL=http://traccar:8082/
+      - BAKEN_RETENTION_HOURS=${BAKEN_RETENTION_HOURS:-}
+      - BAKEN_PRUNER_EMAIL=${BAKEN_PRUNER_EMAIL:-}
+      - BAKEN_PRUNER_PASSWORD=${BAKEN_PRUNER_PASSWORD:-}
+      - BAKEN_PRUNE_FLOOR=${BAKEN_PRUNE_FLOOR:-}
+    volumes:
+      - ./pruner:/srv/pruner:ro
+    # Eén ronde per kwartier: "24 uur" is dan hooguit 24¼ uur. Een ronde die
+    # faalt logt en de volgende probeert het opnieuw (docker compose logs pruner).
+    command: ["sh", "-c", "sleep 60; while :; do php /srv/pruner/prune.php; sleep 900; done"]
+    depends_on:
+      - traccar
+
   caddy:
     image: caddy:2-alpine
     container_name: baken-caddy

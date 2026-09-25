@@ -23,6 +23,8 @@ accounts yourself.
 ## Backups
 
 All state lives in **`traccar/data/`** (the embedded H2 database) on the host.
+With retention on, a backup holds positions the live server has since
+deleted: keep backups no longer than you need them.
 
 ```bash
 # Stop for a consistent copy, back up, restart.
@@ -78,6 +80,44 @@ Traccar's OsmAnd endpoint. It:
   timeout loop;
 - uses the Overland app's **Device ID**, or `BAKEN_DEFAULT_DEVICE_ID` as
   fallback. If neither is set, the point is skipped.
+
+## Retention
+
+Traccar keeps every position forever. The `pruner` container deletes positions
+older than `BAKEN_RETENTION_HOURS` (24 in `.env.example`) every quarter of an
+hour. **Each device's newest position always stays**, so a phone that is
+switched off still shows with "last seen" — just without a trail. Leave
+`BAKEN_RETENTION_HOURS` empty or `0` to keep everything.
+
+Deleting is irreversible. The first round after you turn this on removes all
+older history. To keep what you have, set `BAKEN_PRUNE_FLOOR` to the current
+time (e.g. `2026-09-25T12:00:00Z`); nothing at or before it is ever touched.
+
+### The pruner account
+
+The pruner logs in to Traccar with its own account, as narrow as the job
+allows. It can delete history but not read it. In Traccar's admin UI:
+
+1. **Settings → Groups → +**: a group, e.g. `Everyone`. Put every device in it
+   (Settings → Devices → the device → Group). New devices go in this group too.
+2. **Settings → Users → +**: `pruner@baken.local` (or the value of
+   `BAKEN_PRUNER_EMAIL`) with a long random password (`BAKEN_PRUNER_PASSWORD`).
+   Leave **Administrator** and **Readonly** off; turn **Disable reports** on.
+3. Link the group to the pruner: Settings → Users → pruner → Connections →
+   Groups → `Everyone`.
+4. `docker compose up -d pruner` and check the first round (after one minute):
+
+   ```bash
+   docker compose logs pruner
+   # … prune: 3 device(s) pruned up to …, 0 skipped, 0 failed (retention 24 h, 3 devices visible to the pruner)
+   ```
+
+**A device outside the group is never pruned.** Compare the number of
+devices in that log line with Settings → Devices. Test a change first with
+`docker compose run --rm pruner php /srv/pruner/prune.php --dry-run`.
+
+The log line cannot say *how many* positions were deleted: counting would
+require letting the pruner read everyone's history.
 
 ## Security notes
 
