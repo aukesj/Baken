@@ -28,10 +28,11 @@ issue. Redact them.
 viewer/    static PWA (vanilla JS, no build step) — the map UI
 bridge/    overland.php — translates Overland JSON to Traccar's OsmAnd endpoint
            devices.php — Traccar's device list without the uniqueId
+pruner/    prune.php — deletes positions older than the retention period
 traccar/   Traccar config template (upstream server, not vendored)
 proxy/     Caddy (default) and Apache (reference) reverse-proxy templates
 docs/      INSTALL / SETUP / ADMIN / USE
-tests/     unit (node --test), e2e (Playwright, fake Traccar), bridge (php)
+tests/     unit (node --test), e2e (Playwright, fake Traccar), bridge + pruner (php)
 ```
 
 ## Local development
@@ -51,6 +52,8 @@ npm install                      # only Playwright, for the e2e tests
 npm test                         # pure functions in viewer/helpers.js + a CSP source check
 npm run test:e2e                 # the viewer in Chromium under the proxy's CSP, against a fake Traccar
 sh tests/bridge/devices.test.sh  # bridge/devices.php against a fake Traccar (needs php + curl)
+php tests/pruner/prune-lib.test.php  # the pruner's decisions: which window, the newest position stays
+sh tests/pruner/prune.test.sh    # pruner/prune.php against a fake Traccar (needs php + curl)
 ```
 
 The e2e server (`tests/e2e/csp-static-server.js`) sends the same

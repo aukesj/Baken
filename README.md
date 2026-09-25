@@ -55,6 +55,7 @@ Find My and Google location sharing work — but every location you share flows 
 - 🔋 **Battery & real accuracy** on iOS via the Overland bridge; Android/other via the Traccar Client (OsmAnd protocol).
 - 📱 **Installable PWA** — add to home screen, looks and feels native; persistent login (no surprise logouts).
 - 🌍 **i18n-ready** viewer (ships with English + Dutch).
+- 🗑️ **24-hour retention** — positions older than a day are deleted every quarter of an hour (configurable, or off); each person's last position stays so nobody drops off the map.
 - 🔒 **No location data in caches** — strict no-store on the API; the app shell is cacheable, your whereabouts are not.
 
 ## How it works

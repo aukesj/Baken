@@ -54,6 +54,9 @@ your device.
 
 - Your places ("home", "school") and notifications are stored **only on your
   phone**, not on the server.
+- The server keeps your positions for a limited time only (24 hours by
+  default, set by your host); older ones are deleted. Your last position stays,
+  so people can still see where you were last.
 - Street names are looked up by the server at OpenStreetMap, not by your phone.
 - Only the people your host explicitly linked can see you — and only if you run a
   publishing app.

@@ -49,6 +49,15 @@ to OpenStreetMap. Don't want that? Point the `/geocode` block in
 `proxy/Caddyfile` at your own Nominatim, or remove it and set
 `showAddress: false` in `viewer/config.js`.
 
+### Retention
+
+`.env.example` keeps positions for 24 hours (`BAKEN_RETENTION_HOURS`); the
+`pruner` container deletes anything older, but always keeps each device's last
+position. It needs its own Traccar account with `BAKEN_PRUNER_PASSWORD` set —
+see [ADMIN.md → Retention](ADMIN.md#retention). Until then the pruner logs an
+error and deletes nothing. Want to keep all history? Leave
+`BAKEN_RETENTION_HOURS` empty.
+
 ### Photos on the pins (optional)
 
 Put a square photo per person in `viewer/images/`, named after the device name
