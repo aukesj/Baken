@@ -603,15 +603,21 @@
       const cur = { lat: pos.latitude, lon: pos.longitude, t: new Date(pos.fixTime || pos.deviceTime || pos.serverTime).getTime() };
       person.pos = cur;
 
-      // beweging afgeleid uit twee fixes
+      // Beweging afgeleid uit twee fixes. Traccar slaat een koers die de
+      // zender weglaat op als 0, dus 0 telt als onbekend en niet als noord.
       let moving = at.motion === true || (pos.speed && pos.speed > 1);
       let kmh = (pos.speed != null && pos.speed > 0) ? Math.round(pos.speed * 1.852) : null;
-      let course = pos.course || 0;
+      let course = pos.course ? pos.course : null;
       if (person.prevFix && person.prevFix.t !== cur.t) {
         const dt = (cur.t - person.prevFix.t) / 1000, dm = haversine(person.prevFix, cur);
-        if (dt > 0 && dt < 3600 && dm > 25) { const dkmh = (dm / dt) * 3.6; if (dkmh > 6) { moving = true; if (!kmh) kmh = Math.round(dkmh); if (!pos.course) course = bearing(person.prevFix, cur); } }
+        if (dt > 0 && dt < 3600 && dm > 25) { const dkmh = (dm / dt) * 3.6; if (dkmh > 6) person._derived = { t: cur.t, kmh: Math.round(dkmh), course: bearing(person.prevFix, cur) }; }
       }
       if (!person.prevFix || person.prevFix.t !== cur.t) person.prevFix = cur;
+      // Wat afgeleid is hoort bij de fix waar het uit kwam. Dezelfde fix bij de
+      // volgende refresh houdt het; anders sprong de pin terug op de fix en
+      // draaide hij naar het noorden.
+      const der = person._derived;
+      if (der && der.t === cur.t) { moving = true; if (!kmh) kmh = der.kmh; if (course == null) course = der.course; }
 
       // Snelheid pas tonen vanaf een drempel. GPS-ruis bij stilstand levert
       // makkelijk 1-2 km/u op; onder SPEED_MIN_KMH tonen we geen snelheid én
