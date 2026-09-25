@@ -61,6 +61,17 @@
     ProxyPreserveHost On
     ProxyRequests Off
     SSLProxyEngine On
+    # Check the certificate of Nominatim. Apache's default is `none`, and then
+    # anybody on the path could read every coordinate sent out for an address
+    # and answer with a false one. The depth has to be raised: its default of 1
+    # rejects Nominatim's real certificate, which hangs under an intermediate.
+    # The CA bundle path is the Debian/Ubuntu one; on RHEL/Rocky it is
+    # /etc/pki/tls/certs/ca-bundle.crt.
+    SSLProxyVerify require
+    SSLProxyVerifyDepth 10
+    SSLProxyCheckPeerName on
+    SSLProxyCheckPeerExpire on
+    SSLProxyCACertificateFile /etc/ssl/certs/ca-certificates.crt
 
     # PHP bridge (php-fpm): the Overland endpoint and the filtered device list.
     <Directory /opt/baken/bridge>

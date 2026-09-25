@@ -100,6 +100,37 @@ test("a fresh fix is estimated ahead, and snaps back once it goes stale", async 
   expect(await pinVsFix(page, LAT, LON)).toBeLessThan(3);       // terug op de fix
 });
 
+test("a speed derived from two fixes survives a refresh of the same fix", async ({ page }) => {
+  test.setTimeout(60000);
+  await fastConfig(page);
+  // Een zender zonder snelheid en koers, zoals Traccar ze opslaat: 0 en 0. Het
+  // eerste antwoord ligt 110 m zuidelijker, daarna steeds dezelfde fix, 10 s
+  // later. Daaruit volgt ~40 km/u noordwaarts. Vroeger liet de volgende refresh
+  // van diezelfde fix dat weer vallen: de pin sprong terug op de fix.
+  const t0 = Date.now();
+  const fix = (lat, ageMs) => [{ id: 1, deviceId: 42, latitude: lat, longitude: LON,
+    speed: 0, course: 0, fixTime: new Date(t0 - ageMs).toISOString(), attributes: {} }];
+  let calls = 0;
+  await mockApi(page, { positions: () => (calls++ === 0 ? fix(LAT - 0.001, 12000) : fix(LAT, 2000)) });
+  await login(page, BASE_URL);
+  await waitForPin(page);
+  // Wacht tot de tweede fix binnen is en de pin ervan weg begint te schuiven.
+  await expect.poll(() => calls, { timeout: 10000 }).toBeGreaterThan(1);
+  await expect.poll(() => pinVsFix(page, LAT, LON), { timeout: 10000 }).toBeGreaterThan(3);
+  const callsBefore = calls;
+  let prev = await pinVsFix(page, LAT, LON), worst = 0;
+  const first = prev;
+  for (let i = 0; i < 28; i++) {
+    await page.waitForTimeout(250);
+    const cur = await pinVsFix(page, LAT, LON);
+    worst = Math.max(worst, prev - cur);   // positief = terug naar de fix
+    prev = cur;
+  }
+  expect(calls - callsBefore, "refreshes van dezelfde fix tijdens het meten").toBeGreaterThan(0);
+  expect(worst, "grootste stap terug, in pixels").toBeLessThan(2);
+  expect(prev - first, "pixels verder van de fix").toBeGreaterThan(5);
+});
+
 test("without a geocoder behind the proxy the viewer stops asking", async ({ page }) => {
   await fastConfig(page);
   const state = await mockApi(page, { geocode: 404 });
